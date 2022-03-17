@@ -14,13 +14,13 @@ def relu(x):
 
 def softmax(x):
     exp = np.exp(x)
-    b = np.sum(x, axis=1)
+    b = np.sum(exp, axis=1)
     c = b.reshape(b.shape[0], 1)
     return exp / c
 
 
 def cross_entropy_loss(gt, y):
-    log_y = np.log2(y)
+    log_y = np.log(y)
     batch_size = gt.shape[0]
     loss = gt * log_y
     loss = -np.sum(loss) / batch_size
@@ -47,8 +47,9 @@ def calc_loss_and_grad(x, y, w1, b1, w2, b2, eval_only=False):
     batch_size = y.shape[0]
     loss, y_hat = None, None
     z = x.dot(w1) + b1
-    y_middle = relu(z)
-    y_hat = softmax(y_middle.dot(w2) + b2)
+    h1 = relu(z)
+    z2 = h1.dot(w2) + b2
+    y_hat = softmax(z2)
     loss = cross_entropy_loss(y, y_hat)
 
     if eval_only:
@@ -56,22 +57,28 @@ def calc_loss_and_grad(x, y, w1, b1, w2, b2, eval_only=False):
 
     # TODO
     # backward pass
-    db2 = (y_hat - y) / batch_size
     db2 = np.zeros_like(b2)
     for i in range(batch_size):
         db2 += y_hat[i] - y[i]
     db2 = db2 / batch_size
-    dw2 = np.sum(y_hat - y) / batch_size * y_middle.T
     dw2 = np.zeros_like(w2)
     for i in range(batch_size):
-        dw2 += (y_hat[i] - y[i]) * y_middle[i].T
+        dw2 += h1[i].reshape(-1, 1)\
+            .dot((y_hat[i] - y[i]).reshape(1, -1))
     dw2 = dw2 / batch_size
-    # left = (np.sum(y_hat-y) / batch_size * w2.T)
-    # right = x.T.dot(np.sign(z))
-    # dw1 = (np.sum(y_hat-y) / batch_size * w2.T) * (np.sign(z).dot(x))
-    # db1 = (np.sum(y_hat-y) / batch_size * w2.T) * np.sign(z)
 
-    return loss, db2, dw2 #, db1, dw1
+    dw1 = np.zeros_like(w1)
+    db1 = np.zeros_like(b1)
+    for i in range(batch_size):
+        sign = np.sign(z[i].reshape(-1, 1))
+        tmp = w2.dot((y_hat[i] - y[i]).reshape(-1, 1)) * sign
+        db1 += tmp.reshape(-1)
+        dw1 += tmp.dot(x[i].reshape(1, -1)).T
+
+    dw1 = dw1 / batch_size
+    db1 = db1 / batch_size
+
+    return loss, db2, dw2, db1, dw1
 
 
 def train(train_x, train_y, test_x, text_y, args: argparse.Namespace):
