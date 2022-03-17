@@ -27,7 +27,6 @@ def check_grad(calc_loss_and_grad):
     print('Gradient check of backward propagation:')
 
     # generate random test data
-    np.random.seed(1)
     x = np.random.rand(5, 15)
     y = np.random.rand(5, 3)
     # construct one hot labels

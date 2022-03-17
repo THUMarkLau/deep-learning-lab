@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import utils
+from tqdm import tqdm
 
 # input and output dimensions
 input_dim = 784
@@ -55,28 +56,14 @@ def calc_loss_and_grad(x, y, w1, b1, w2, b2, eval_only=False):
     if eval_only:
         return loss, y_hat
 
-    # TODO
     # backward pass
-    db2 = np.zeros_like(b2)
-    for i in range(batch_size):
-        db2 += y_hat[i] - y[i]
-    db2 = db2 / batch_size
-    dw2 = np.zeros_like(w2)
-    for i in range(batch_size):
-        dw2 += h1[i].reshape(-1, 1)\
-            .dot((y_hat[i] - y[i]).reshape(1, -1))
-    dw2 = dw2 / batch_size
+    dy = y_hat - y
+    db2 = np.sum(dy, axis=0) / batch_size
+    dw2 = h1.T.dot(dy) / batch_size
 
-    dw1 = np.zeros_like(w1)
-    db1 = np.zeros_like(b1)
-    for i in range(batch_size):
-        sign = np.sign(z[i].reshape(-1, 1))
-        tmp = w2.dot((y_hat[i] - y[i]).reshape(-1, 1)) * sign
-        db1 += tmp.reshape(-1)
-        dw1 += tmp.dot(x[i].reshape(1, -1)).T
-
-    dw1 = dw1 / batch_size
-    db1 = db1 / batch_size
+    tmp = w2.dot(dy.T).T * np.sign(z)
+    db1 = np.sum(tmp, axis=0).T / batch_size
+    dw1 = x.T.dot(tmp) / batch_size
 
     return loss, db2, dw2, db1, dw1
 
@@ -94,11 +81,16 @@ def train(train_x, train_y, test_x, text_y, args: argparse.Namespace):
     # TODO
     #  randomly initialize the parameters (weights and biases)
     w1, b1, w2, b2 = None, None, None, None
+    w1 = np.random.randn(784, args.hidden_dim)
+    b1 = np.random.randn(args.hidden_dim)
+    w2 = np.random.randn(args.hidden_dim, 10)
+    b2 = np.random.randn(10)
 
     print('Start training:')
-    print_freq = 100
+    print_freq = 1000
     loss_curve = []
-
+    lr = args.lr
+    print('Learning rate: ' + str(lr))
     for epoch in range(args.epochs):
         # train for one epoch
         print("[Epoch #{}]".format(epoch))
@@ -111,21 +103,33 @@ def train(train_x, train_y, test_x, text_y, args: argparse.Namespace):
 
         n_iterations = train_x.shape[0] // args.batch_size
 
-        for i in range(n_iterations):
+        for i in tqdm(range(n_iterations)):
             # load a mini-batch
             x_batch = train_x[i * args.batch_size: (i + 1) * args.batch_size, :]
             y_batch = train_y[i * args.batch_size: (i + 1) * args.batch_size, :]
 
             # TODO
             # compute loss and gradients
-            loss = None
-
+            loss, db2, dw2, db1, dw1 = calc_loss_and_grad(x_batch, y_batch, w1, b1, w2, b2)
+            if np.isnan(loss):
+                continue
             # TODO
             # update parameters
+            w1 -= dw1 * lr
+            b1 -= db1 * lr
+            w2 -= dw2 * lr
+            b2 -= db2 * lr
 
             loss_curve.append(loss)
-            if i % print_freq == 0:
-                print('[Iteration #{}/{}] [Loss #{:4f}]'.format(i, n_iterations, loss))
+            # if i % print_freq == 0:
+            #     print('[Iteration #{}/{}] [Loss #{:4f}]'.format(i, n_iterations, loss))
+
+        loss, y_hat = calc_loss_and_grad(test_x, text_y, w1, b1, w2, b2, eval_only=True)
+        predictions = np.argmax(y_hat, axis=1)
+        labels = np.argmax(text_y, axis=1)
+        accuracy = np.sum(predictions == labels) / test_x.shape[0]
+        print('Top-1 accuracy on the test set', accuracy)
+        lr = lr * 0.8
 
     # show learning curve
     plt.title('Training Curve')
@@ -170,13 +174,13 @@ def main(args: argparse.Namespace):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Multilayer Perceptron')
-    parser.add_argument('--hidden-dim', default=50, type=int,
+    parser.add_argument('--hidden-dim', default=256, type=int,
                         help='hidden dimension of the Multilayer Perceptron')
     parser.add_argument('--lr', default=0.001, type=float,
                         help='learning rate')
-    parser.add_argument('--batch-size', default=1, type=int,
+    parser.add_argument('--batch-size', default=2, type=int,
                         help='mini-batch size')
-    parser.add_argument('--epochs', default=10, type=int,
+    parser.add_argument('--epochs', default=20, type=int,
                         help='number of total epochs to run')
     args = parser.parse_args()
     main(args)
