@@ -155,17 +155,17 @@ def main(args: argparse.Namespace):
     print(args)
 
     # load training set and test set
-    # train_x, train_y = utils.load_data("train")
-    # test_x, text_y = utils.load_data("test")
-    # print('Dataset information:')
-    # print("training set size: {}".format(len(train_x)))
-    # print("test set size: {}".format(len(test_x)))
+    train_x, train_y = utils.load_data("train")
+    test_x, text_y = utils.load_data("test")
+    print('Dataset information:')
+    print("training set size: {}".format(len(train_x)))
+    print("test set size: {}".format(len(test_x)))
 
     # check your implementation of backward propagation before starting training
     utils.check_grad(calc_loss_and_grad)
 
     # train the network and report the accuracy on the training and the test set
-    # train(train_x, train_y, test_x, text_y, args)
+    train(train_x, train_y, test_x, text_y, args)
 
 
 if __name__ == '__main__':
