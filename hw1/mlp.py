@@ -82,9 +82,14 @@ def train(train_x, train_y, test_x, text_y, args: argparse.Namespace):
     #  randomly initialize the parameters (weights and biases)
     w1, b1, w2, b2 = None, None, None, None
     w1 = np.random.randn(784, args.hidden_dim)
+    scale = 5e-2
+    w1 = np.random.normal(loc=0.0, scale=scale, size=(784, args.hidden_dim))
     b1 = np.random.randn(args.hidden_dim)
+    b1 = np.random.normal(loc=0.0, scale=scale, size=args.hidden_dim)
     w2 = np.random.randn(args.hidden_dim, 10)
+    w2 = np.random.normal(loc=0.0, scale=scale, size=(args.hidden_dim, 10))
     b2 = np.random.randn(10)
+    b2 = np.random.normal(loc=0.0, scale=scale, size=10)
 
     print('Start training:')
     print_freq = 1000
@@ -112,6 +117,7 @@ def train(train_x, train_y, test_x, text_y, args: argparse.Namespace):
             # compute loss and gradients
             loss, db2, dw2, db1, dw1 = calc_loss_and_grad(x_batch, y_batch, w1, b1, w2, b2)
             if np.isnan(loss):
+                print("loss is nan")
                 continue
             # TODO
             # update parameters
@@ -129,7 +135,7 @@ def train(train_x, train_y, test_x, text_y, args: argparse.Namespace):
         labels = np.argmax(text_y, axis=1)
         accuracy = np.sum(predictions == labels) / test_x.shape[0]
         print('Top-1 accuracy on the test set', accuracy)
-        lr = lr * 0.95
+        lr = lr * 0.8
 
     # show learning curve
     plt.title('Training Curve')
@@ -174,13 +180,13 @@ def main(args: argparse.Namespace):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Multilayer Perceptron')
-    parser.add_argument('--hidden-dim', default=512, type=int,
+    parser.add_argument('--hidden-dim', default=50, type=int,
                         help='hidden dimension of the Multilayer Perceptron')
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=3e-1, type=float,
                         help='learning rate')
-    parser.add_argument('--batch-size', default=1, type=int,
+    parser.add_argument('--batch-size', default=64, type=int,
                         help='mini-batch size')
-    parser.add_argument('--epochs', default=20, type=int,
+    parser.add_argument('--epochs', default=10, type=int,
                         help='number of total epochs to run')
     args = parser.parse_args()
     main(args)
