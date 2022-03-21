@@ -129,7 +129,7 @@ def train(train_x, train_y, test_x, text_y, args: argparse.Namespace):
         labels = np.argmax(text_y, axis=1)
         accuracy = np.sum(predictions == labels) / test_x.shape[0]
         print('Top-1 accuracy on the test set', accuracy)
-        lr = lr * 0.8
+        lr = lr * 0.95
 
     # show learning curve
     plt.title('Training Curve')
@@ -174,11 +174,11 @@ def main(args: argparse.Namespace):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Multilayer Perceptron')
-    parser.add_argument('--hidden-dim', default=256, type=int,
+    parser.add_argument('--hidden-dim', default=512, type=int,
                         help='hidden dimension of the Multilayer Perceptron')
     parser.add_argument('--lr', default=0.001, type=float,
                         help='learning rate')
-    parser.add_argument('--batch-size', default=2, type=int,
+    parser.add_argument('--batch-size', default=1, type=int,
                         help='mini-batch size')
     parser.add_argument('--epochs', default=20, type=int,
                         help='number of total epochs to run')

@@ -1,5 +1,7 @@
 import argparse
 from collections import OrderedDict
+
+from torch.autograd import Variable
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -7,6 +9,7 @@ import torch.nn as nn
 import torch.utils.data as data
 import utils
 
+recon_loss_func = nn.MSELoss(size_average=False)
 
 def train(model, train_loader, optimizer, epoch, quiet, grad_clip=None):
     """Train the model for one epoch.
@@ -144,8 +147,26 @@ class FullyConnectedVAE(nn.Module):
         # TODO
         # perform forward propagation and calculate loss
         recon_loss, kl_loss = None, None
+        encode_res = self.encoder.forward(x)
+        mu = encode_res[:, :2]
+        logvar = encode_res[:, 2:]
+        kld_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
+        kl_loss = torch.sum(kld_element).mul_(-0.5)
 
+        z = self.reparamter(mu, logvar)
+        decode_res = self.decoder.forward(z)
+        recon_res = self.reparamter(decode_res[:, :2], decode_res[:, 2:])
+        recon_loss = recon_loss_func(recon_res, x)
         return OrderedDict(loss=recon_loss + kl_loss, recon_loss=recon_loss, kl_loss=kl_loss)
+
+    def reparamter(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        if torch.cuda.is_available():
+            eps = torch.cuda.FloatTensor(std.size()).normal_()
+        else:
+            eps = torch.FloatTensor(std.size()).normal_()
+        eps = Variable(eps)
+        return eps.mul(std).add_(mu)
 
     def sample(self, n, noise=True):
         with torch.no_grad():
