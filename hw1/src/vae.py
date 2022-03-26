@@ -11,6 +11,7 @@ import utils
 
 recon_loss_func = nn.MSELoss(size_average=False)
 
+
 def train(model, train_loader, optimizer, epoch, quiet, grad_clip=None):
     """Train the model for one epoch.
 
@@ -155,8 +156,18 @@ class FullyConnectedVAE(nn.Module):
 
         z = self.reparamter(mu, logvar)
         decode_res = self.decoder.forward(z)
-        recon_res = self.reparamter(decode_res[:, :2], decode_res[:, 2:])
-        recon_loss = recon_loss_func(recon_res, x)
+        decode_mu = decode_res[:, :2]
+        decode_logvar = decode_res[:, 2:]
+        decode_var = torch.exp(decode_logvar)
+
+        recon_loss_const = 0.5 * np.log(np.pi * 2)
+        recon_loss1 = decode_logvar
+        recon_loss2 = (x-decode_mu).pow(2).divide(decode_var.pow(2).mul(2))
+        recon_loss = recon_loss_const + recon_loss1 + recon_loss2
+        recon_loss = torch.sum(recon_loss)
+        # f = self.reparamter(decode_mu, decode_logvar)
+        # recon_loss = recon_loss_func(x, f)
+
         return OrderedDict(loss=recon_loss + kl_loss, recon_loss=recon_loss, kl_loss=kl_loss)
 
     def reparamter(self, mu, logvar):

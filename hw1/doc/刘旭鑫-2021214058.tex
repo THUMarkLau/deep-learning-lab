@@ -1,0 +1,189 @@
+%!TEX program = xelatex
+% 完整编译: xelatex -> bibtex -> xelatex -> xelatex
+\documentclass[lang=cn,11pt,a4paper,cite=authoryear]{elegantpaper}
+
+\title{深度学习第一次作业}
+\author{刘旭鑫 \\ 2021214058 \\ 软硕 211}
+\date{\zhtoday}
+\newcommand{\diff}[2]{\frac{\partial #1}{\partial #2}}
+
+% 本文档命令
+\usepackage{array}
+\newcommand{\ccr}[1]{\makecell{{\color{#1}\rule{1cm}{1cm}}}}
+\newcommand{\hbf}[1]{\hat{\mathbf{#1}}}
+
+\begin{document}
+
+\maketitle
+\section{Block One}
+
+\subsection{Gradient of BatchNormalization Layer\label{sec:BN}} 
+$$
+\left \{
+\begin{aligned}
+  &\diff{y_i}{\gamma}=\hat{x}_i=\frac{x_i-\mu_\beta}{\sqrt{\sigma_{\beta}^2+\epsilon}}, \text{ 其中 } \mu_\beta = \frac{1}{m}\sum_{i=1}^m x_i, \sigma_{\beta}^2=\frac{1}{m}\sum_{i=1}^m(x_i-\mu_\beta)^2
+\\
+&\diff{y_i}{\beta}=\mathbf{1}
+\end{aligned}
+\right .
+$$
+\subsection{Gradient of Dropout Layer}
+从题目中的描述可以知道，对于一个概率 $p$，Dropout 的过程可以转换成一个概率矩阵 $\mathbf{M}$ 对输入的点积，即
+$$y=\mathbf{M}\odot x$$
+其中，$$
+\mathbf{M}_j=\left \{ 
+  \begin{aligned}
+    & 0, & r_j < p, \\ 
+    & 1/(1-p), & r_j \ge p\\
+  \end{aligned}
+  \right .
+  \text{where  1} \le j \le \text{x's size}
+$$
+
+因此梯度 $\diff{y}{x}=\mathbf{M}$
+
+\subsection{Gradient of Softmax Function\label{sec:softmax}}
+对于 Softmax 函数，有 $$y_i = \frac{e^{x_i}}{\sum_{j=1}^n e^{x_j}}, \text{ 其中 } n \text{ 为输出的向量长度}$$
+
+考虑 $\diff{y_i}{x_i}$，根据求导的除法法则有
+
+$$
+\begin{aligned}
+\diff{y_i}{x_i}&=\frac{e^{x_i} \sum_{j=1}^n e^{x_j} - e^{2x_i}}{(\sum_{j=1}^n e^{x_j})^2}\\
+&=\frac{e^{x_i}}{\sum_{j=1}^n e^{x_j}}(1 - \frac{e^{x_i}}{\sum_{j=1}^n e^{x_j}}) \\
+&=y_i(1-y_i)
+\end{aligned}
+$$
+
+再考虑 $\diff{y_i}{x_j}(i\neq j)$，求导有 
+
+$$
+\begin{aligned}
+  \diff{y_i}{x_j}&=-\frac{e^{x_i}e^{x_j}}{(\sum_{k=1}^n e^{x_k})^2}\\
+  &= - \frac{e^{x_i}}{\sum_{k=1}^n e^{x_k}} \times \frac{e^{x_j}}{\sum_{k=1}^n e^{x_k}} \\ 
+  &= -y_iy_j
+\end{aligned}
+$$
+
+
+\section{Block Two}
+\subsection{Feed-forward}
+先考虑 $\hbf{y}_A$：
+\begin{itemize}
+  \item $\text{FC}_{1A}$ 的输出 $\mathbf{z}_{1A}=sin(\theta_{1A}\mathbf{x}+\mathbf{b}_{1A})$
+  \item 假设 $DP$ 层对应的概率矩阵为 $\mathbf{M}$，那么其输出为 $\mathbf{z}_{DP}=\mathbf{M}\odot \mathbf{z}_{1A}$
+  \item $\text{FC}_{2A}$ 的输出 $\mathbf{z}_{2A}=\theta_{2A}\mathbf{z}_{DP}+\mathbf{b}_{2A}$
+\end{itemize}
+因此有
+$$\hbf{y}_A=\mathbf{z}_{2A}=\theta_{2A}\mathbf{M}\odot sin(\theta_{1A}\mathbf{x}+\mathbf{b}_{1A})+\mathbf{b}_{2A}$$
+
+考虑 $\hbf{y}_B$:
+\begin{itemize}
+  \item $\text{FC}_{1B}$ 的输出 $\mathbf{z}_{1B}=\theta_{1B}\mathbf{x} + \mathbf{b}_{1B}$
+  \item BN 层的输出为 $\mathbf{z}_{BN}=\mathbf{N}\odot (\mathbf{z}_{1B}-\mu+\mathbf{b}_{1B})$，其中 $\mathbf{N}$ 为符号向量，$N_i= 1 \text{ if } x_i > 0 \text{ else } 0$，$\mu = \frac{1}{m}\sum_{i=1}^m \mathbf{z}_{1B}^i$
+  \item $\text{FC}_{2B}$ 的输入为 $\mathbf{x}_{2B}=\mathbf{z}_{BN}+\mathbf{y}_A$，输出为 $\mathbf{z}_{2B}=Softmax(\theta_{2B}\mathbf{x}_{2B}+\mathbf{b}_{2B})$
+\end{itemize}
+所以有 $\hbf{y}_B=Softmax\left (\theta_{2B}(\mathbf{N}\odot ((\theta_{1B}\mathbf{x} + \mathbf{b}_{1B})-\mu+\mathbf{b}_{1B})+\theta_{2A}\mathbf{M}\odot sin(\theta_{1A}\mathbf{x}+\mathbf{b}_{1A})+\mathbf{b}_{2A})+\mathbf{b}_{2B}\right )$
+
+\subsection{Backpropagation}
+损失函数为 $$\mathcal{L}=\frac{1}{m}\sum_{i=1}^m \left[ \frac{1}{2}||\hat{\mathbf{y}}_A^i-\mathbf{y}_A^i||_2^2-\sum_{k=1}^b\mathbf{y}_{B,k}^i log\hat{\mathbf{y}}_{B,k}^i \right]$$
+损失函数对$\hat{\mathbf{y}_B}^i$ 的导数为
+\begin{equation}
+  \diff{\mathcal{L}}{\hat{\mathbf{y}}_{B,k}^i}=-\frac{1}{m}\mathbf{y}_{B,k}^i\frac{1}{\hat{\mathbf{y}_{B,k}^i}}
+\end{equation}
+根据 \ref{sec:softmax} 节，$\hat{\mathbf{y}}_{B}^i$ 对 $\theta_{2B}$ 的导数为
+\begin{equation}
+  \begin{aligned}
+    \diff{\hat{\mathbf{y}}_{B,k}^i}{\theta_{2B}}&=\diff{\hat{\mathbf{y}}_{B,k}^i}{\mathbf{z}^i_{2B}}\diff{\mathbf{z}^i_{2B}}{\theta_{2B}} \\
+    &=\left [   
+      \begin{aligned}
+        &-\hat{\mathbf{y}}_{B,k}^i \hat{\mathbf{y}}_{B,1}^i \\
+        &\cdots\\
+        &-\hat{\mathbf{y}}_{B,k}^i \hat{\mathbf{y}}_{B,k-1}^i \\
+        &\hat{\mathbf{y}}_{B,k}^i(1-\hat{\mathbf{y}}_{B,k}^i)\\
+        &-\hat{\mathbf{y}}_{B,k}^i \hat{\mathbf{y}}_{B,k+1}^i \\
+        &\cdots \\
+        &-\hat{\mathbf{y}}_{B,k}^i \hat{\mathbf{y}}_{B,b}^i\\
+    \end{aligned}
+    \right] (\mathbf{x}_{2B}^i)^T
+  \end{aligned}
+\end{equation}
+
+再由链式法则可以求出
+\begin{equation}
+  \begin{aligned}
+    \diff{\mathcal{L}}{\theta_{2B}}&=\sum_{i=1}^m\sum_{k=1}^b \diff{\mathcal{L}}{\hbf{y}_{B,k}^i} \diff{\hbf{y}_{B,k}^i}{\theta_{2B}}\\
+    &=\frac{1}{m}\sum_{i=1}^m\sum_{k=1}^b\hbf{y}_{B,k}^i\left [
+    \begin{aligned}
+      &\hbf{y}_{B,1}^i \\
+      &\cdots \\
+      &\hbf{y}_{B,k-1}^i\\
+      &\hbf{y}_{B,k}^i-1\\
+      &\hbf{y}_{B,k+1}^i\\
+      &\cdots \\
+      &\hbf{y}_{B,b}^i\\
+    \end{aligned}  
+    \right] (\mathbf{x}_{2B}^i)^T \\
+    &=\frac{1}{m}\sum_{i=1}^m\left [
+      \begin{aligned}
+        &\hbf{y}_{B,i}^i\sum_{k=1}^b \hbf{y}_{B,k}^i-\hbf{y}_{B,1}^i \\
+        &\cdots \\
+        &\hbf{y}_{B,i}^i\sum_{k=1}^b \hbf{y}_{B,k}^i-\hbf{y}_{B,b}^i\\
+      \end{aligned}  
+    \right](\mathbf{x}_{2B}^i)^T \\
+    &=\frac{1}{m}\sum_{i=1}^m(\hbf{y}_B^i-\mathbf{y}_B^i) (\mathbf{x}_{2B}^i)^T
+  \end{aligned}
+\end{equation}
+
+$\diff{\mathcal{L}}{\mathbf{b}_{2B}}$ 的计算过程与上面类似，结果为 $\frac{1}{m}\sum_{i=1}^m(\hbf{y}_B^i-\mathbf{y}_B^i)$
+
+由 \ref{sec:BN} 到 \ref{sec:softmax} 节的推导，以及链式法则得到
+\begin{equation}
+  \diff{\mathcal{L}}{\mathbf{x}_{2B}}=\diff{L}{\mathbf{z}_{BN}^i}=\frac{1}{m}\sum_{i=1}^m (\theta_{2B})^T (\hbf{y}_B^i-\hbf{y}_B^i)
+\end{equation}
+\begin{equation}
+  \diff{\mathcal{L}}{\mathbf{z}_{1B}^i}=\frac{1}{m}(1-\frac{1}{m})\sum_{i=1}^m (\theta_{2B})^T(\hbf{y}^i_B -\hbf{y}_B^i)\odot sgn(\mathbf{H}_{BN}^i)
+\end{equation}
+其中，$\mathbf{H}_{BN}^i=\mathbf{z}_{1B}^i-\mu+\mathbf{b}_{1B}$
+\begin{equation}
+  \diff{\mathcal{L}}{\theta_{1B}}=\frac{1}{m}(1-\frac{1}{m})\sum_{i=1}^m(\theta_{2B})^T(\hbf{y}_B^i-\mathbf{y}_B^i)\odot sgn(\mathbf{H}_{BN}^i)(\mathbf{x}^i)^T
+\end{equation}
+\begin{equation}
+  \diff{\mathcal{L}}{\mathbf{b}_{1B}}=\diff{\mathcal{L}}{\mathbf{H}_{BN}^i}=\frac{1}{m}\sum_{i=1}^m (\theta_{2B})^T (\hbf{y}_B^i-\mathbf{y}_B^i)\odot sgn(\mathbf{z}_{BN}^i)
+\end{equation}
+
+下面推导 Task A 路径的梯度。
+\begin{equation}
+  \begin{aligned}
+    \diff{\mathcal{L}}{\theta_{2A}}&=\diff{\mathcal{L}_{\text{taskA}}}{\theta_{2A}}+\diff{\mathcal{L}_{\text{taskB}}}{\theta_{2A}} \\
+    &=\diff{\mathcal{L}}{\hbf{y}_A^i}\diff{\hbf{y}_A^i}{\theta_{2A}}+\diff{\mathcal{L}}{\hbf{y}_B^i}\diff{\hbf{y}_B^i}{\theta_{2A}} \\
+    &=\frac{1}{m}\sum_{i=1}^m(\hbf{y}_A^i-\mathbf{y}_A^i)(\mathbf{z}_{DP}^i)^T+\diff{\mathcal{L}}{\mathbf{x}_{2B}}\diff{\mathbf{x}_{2B}}{\hbf{y}_A^i}\diff{\hbf{y}_A^i}{\theta_{2A}}\\
+    &=\frac{1}{m}\sum_{i=1}^m[(\hbf{y}_A^i-\mathbf{y}_A^i)+(\theta_{2B})^T(\hbf{y}_B^i-\mathbf{y}_B^i)](\mathbf{z}_{DP}^i)^T
+  \end{aligned}
+\end{equation}
+\begin{equation}
+  \begin{aligned}
+    \diff{\mathcal{L}}{\mathbf{b}_{2A}}&=\diff{\mathcal{L}_{\text{taskA}}}{\mathbf{b}_{2A}}+\diff{\mathcal{L}_{\text{taskB}}}{\mathbf{b}_{2A}} \\
+    &=\diff{\mathcal{L}}{\hbf{y}_A^i}\diff{\hbf{y}_A^i}{\mathbf{b}_{2A}}+\diff{\mathcal{L}}{\hbf{y}_B^i}\diff{\hbf{y}_B^i}{\mathbf{b}_{2A}} \\
+    &=\frac{1}{m}\sum_{i=1}^m(\hbf{y}_A^i-\mathbf{y}_A^i)+\diff{\mathcal{L}}{\mathbf{x}_{2B}}\diff{\mathbf{x}_{2B}}{\hbf{y}_A^i}\diff{\hbf{y}_A^i}{\mathbf{b}_{2A}}\\
+    &=\frac{1}{m}\sum_{i=1}^m[(\hbf{y}_A^i-\mathbf{y}_A^i)+(\theta_{2B})^T(\hbf{y}_B^i-\mathbf{y}_B^i)]
+  \end{aligned}
+\end{equation}
+
+通过链式法则以及 \ref{sec:BN} 到 \ref{sec:softmax} 节的结论，有
+\begin{equation}
+  \diff{\mathcal{L}}{\hbf{y}_A^i}=\frac{1}{m}\sum_{i=1}^m[(\hbf{y}_A^i-\mathbf{y}_A^i)+\theta_{2B}^T(\hbf{y}_B^i-\mathbf{y}_B^i)]
+\end{equation}
+\begin{equation}
+  \diff{\mathcal{L}}{\mathbf{z}_{DP}^i}=\frac{1}{m}\sum_{i=1}^m\theta_{2A}^T[(\hbf{y}_A^i-\mathbf{y}_A^i)+\theta_{2B}^T(\hbf{y}_B^i-\mathbf{y}_B^i)]
+\end{equation}
+\begin{equation}
+  \diff{\mathcal{L}}{\mathbf{z}_{1A}^i}=\frac{1}{m}\sum_{i=1}^m\theta_{2A}^T[(\hbf{y}_A^i-\mathbf{y}_A^i)+\theta_{2B}^T(\hbf{y}_B^i-\mathbf{y}_B^i)]\odot \mathbf{M} 
+\end{equation}
+\begin{equation}
+  \diff{\mathcal{L}}{\theta_{1A}}=\frac{1}{m}\sum_{i=1}^m\theta_{2A}^T\left([(\hbf{y}_A^i-\mathbf{y}_A^i)+\theta_{2B}^T(\hbf{y}_B^i-\mathbf{y}_B^i)]\odot \mathbf{M}\odot cos(\mathbf{H}_{1A}^i)\right )(\mathbf{x}^i)^T
+\end{equation}
+\begin{equation}
+  \diff{\mathcal{L}}{\mathbf{b}_{1A}}=\frac{1}{m}\sum_{i=1}^m\theta_{2A}^T[(\hbf{y}_A^i-\mathbf{y}_A^i)+\theta_{2B}^T(\hbf{y}_B^i-\mathbf{y}_B^i)]\odot \mathbf{M}\odot cos(\mathbf{H}_{1A}^i)
+\end{equation}
+\end{document}
