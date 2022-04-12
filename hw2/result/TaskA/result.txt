@@ -1,0 +1,2 @@
+valid_acc:96.98
+train_acc:95.59
