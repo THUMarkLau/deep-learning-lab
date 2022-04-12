@@ -7,5 +7,4 @@ __MACOSX
 *.aux
 *.log
 *.out
-*.gz
 hw2/hw2_start_code/hw2_dataset/*
