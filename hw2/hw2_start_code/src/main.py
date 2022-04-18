@@ -11,7 +11,7 @@ from tqdm import tqdm
 from LDMALoss import LDAMLoss
 from CBLoss import CBLoss
 
-vis = Visdom(env='hw2-TaskC-CB-59_30')
+vis = Visdom(env='hw2-TaskC-49_20')
 train_loss_win = None
 valid_loss_win = None
 train_acc_win = None
@@ -88,7 +88,7 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, num_epo
         if valid_acc > best_acc:
             best_acc = valid_acc
             best_model = model
-            torch.save(best_model, 'best_model-C-res18.pt')
+            torch.save(best_model, 'best_model-C-4920.pt')
 
 
 if __name__ == '__main__':
@@ -100,10 +100,10 @@ if __name__ == '__main__':
     ## about data
     data_dir = "../data/"  ## You need to specify the data_dir first
     input_size = 224
-    batch_size = 128
+    batch_size = 32
 
     ## about training
-    num_epochs = 100
+    num_epochs = 500
     lr = 0.001
 
     ## model initialization
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     if loss_type == "LDMA":
         criterion = LDAMLoss(np.array(cls_num_list))
     elif loss_type == "CB":
-        criterion = CBLoss(cls_num_list, num_classes, loss_type="focal", beta=0.99999, gamma=3.0).to("cuda:0")
+        criterion = CBLoss(cls_num_list, num_classes, loss_type="focal", beta=0.9999, gamma=2.0).to("cuda:0")
     else:
         criterion = nn.CrossEntropyLoss()
     train_model(model, train_loader, valid_loader, criterion, optimizer, num_epochs=num_epochs)
