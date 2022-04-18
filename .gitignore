@@ -9,3 +9,4 @@ __MACOSX
 *.out
 hw2/hw2_start_code/hw2_dataset/*
 hw2/hw2_start_code/src/__pycache__/*
+hw2\hw2_start_code\src\*.pt

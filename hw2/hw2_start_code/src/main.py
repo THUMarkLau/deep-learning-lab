@@ -8,12 +8,15 @@ from visdom import Visdom
 import numpy as np
 import time
 from tqdm import tqdm
+from LDMALoss import LDAMLoss
+from CBLoss import CBLoss
 
-vis = Visdom(env='hw2-TaskB-2')
+vis = Visdom(env='hw2-TaskC-CB-59_30')
 train_loss_win = None
 valid_loss_win = None
 train_acc_win = None
 valid_acc_win = None
+loss_type = "CB"
 
 ## Note that: here we provide a basic solution for training and validation.
 ## You can directly change it if you find something wrong or not good enough.
@@ -23,7 +26,6 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, num_epo
         model.train(True)
         total_loss = 0.0
         total_correct = 0
-
         for inputs, labels in train_loader:
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -86,7 +88,7 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, num_epo
         if valid_acc > best_acc:
             best_acc = valid_acc
             best_model = model
-            torch.save(best_model, 'best_model-B-2.pt')
+            torch.save(best_model, 'best_model-C-res18.pt')
 
 
 if __name__ == '__main__':
@@ -96,25 +98,42 @@ if __name__ == '__main__':
     num_classes = 10
 
     ## about data
-    data_dir = "../hw2_dataset/"  ## You need to specify the data_dir first
+    data_dir = "../data/"  ## You need to specify the data_dir first
     input_size = 224
-    batch_size = 36
+    batch_size = 128
 
     ## about training
     num_epochs = 100
     lr = 0.001
 
     ## model initialization
-    model = models.model_B(num_classes=num_classes)
+    model = models.model_A(num_classes=num_classes)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
     ## data preparation
-    train_loader, valid_loader = data.load_data(data_dir=data_dir, input_size=input_size, batch_size=batch_size)
-
+    train_loader, valid_loader = data.load_data(data_dir=data_dir, input_size=input_size, batch_size=batch_size, topic="4-Long-Tailed")
+    # train_loader, valid_loader = data.load_data(data_dir=data_dir, input_size=input_size, batch_size=batch_size)
     ## optimizer
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
-
+    # optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=0.9)
+    # optimizer = optim.Adam(model.parameters(), lr=lr)
     ## loss function
-    criterion = nn.CrossEntropyLoss()
+    cls_num_dict = dict()
+    for input, labels in train_loader:
+        for l in labels:
+            l = l.item()
+            if l in cls_num_dict:
+                cls_num_dict[l] = cls_num_dict[l] + 1
+            else:
+                cls_num_dict[l] = 1
+    cls_num_list = []
+    for i in range(0, 10):
+        cls_num_list.append(cls_num_dict[i])
+    if loss_type == "LDMA":
+        criterion = LDAMLoss(np.array(cls_num_list))
+    elif loss_type == "CB":
+        criterion = CBLoss(cls_num_list, num_classes, loss_type="focal", beta=0.99999, gamma=3.0).to("cuda:0")
+    else:
+        criterion = nn.CrossEntropyLoss()
     train_model(model, train_loader, valid_loader, criterion, optimizer, num_epochs=num_epochs)
